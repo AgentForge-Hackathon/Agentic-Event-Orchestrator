@@ -66,7 +66,7 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
   const { events, status, error } = useTraceStream(workflowId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
-  const [approvalDecision, setApprovalDecision] = useState<'approved' | 'rejected' | null>(null);
+  const [localApprovalDecision, setLocalApprovalDecision] = useState<'approved' | 'rejected' | null>(null);
 
   const visibleEvents = useMemo(
     () =>
@@ -108,12 +108,12 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
     [events],
   );
 
-  // Sync external resolution (SSE) into local state
-  useEffect(() => {
-    if (approvalResolved && !approvalDecision) {
-      setApprovalDecision(approvalResolved.status as 'approved' | 'rejected');
-    }
-  }, [approvalResolved, approvalDecision]);
+  // Derive approval decision: local user action wins, otherwise fall back to SSE-resolved status
+  const approvalDecision: 'approved' | 'rejected' | null =
+    localApprovalDecision ??
+    (approvalResolved?.status === 'approved' || approvalResolved?.status === 'rejected'
+      ? (approvalResolved.status as 'approved' | 'rejected')
+      : null);
 
   // Pipeline completed with approved plan — show continue button
   const showContinueButton = status === 'done' && approvalDecision === 'approved' && !!onComplete;
@@ -130,7 +130,7 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
     if (res.error) {
       toast.error(`Failed to approve: ${res.error}`);
     } else {
-      setApprovalDecision('approved');
+      setLocalApprovalDecision('approved');
       toast.success('Plan approved! Continuing to execution…');
     }
     setApprovalSubmitting(false);
@@ -145,14 +145,13 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
     if (res.error) {
       toast.error(`Failed to reject: ${res.error}`);
     } else {
-      setApprovalDecision('rejected');
+      setLocalApprovalDecision('rejected');
       toast('Plan rejected.');
     }
     setApprovalSubmitting(false);
   }, [workflowId]);
 
-  const resultCount =
-    resultEvent?.metadata?.resultCount ?? resultEvent?.metadata?.eventCount;
+  const resultCount = resultEvent?.metadata?.resultCount;
 
   // The auto-expanded event: last visible event that has a durationMs
   const autoExpandId = useMemo(() => {

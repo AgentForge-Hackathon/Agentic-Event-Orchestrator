@@ -94,7 +94,6 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
   const hasDetails =
     event.metadata?.inputSummary ||
     event.metadata?.outputSummary ||
-    event.metadata?.eventCount != null ||
     event.metadata?.resultCount != null ||
     event.metadata?.reasoning ||
     event.metadata?.reasoningSteps?.length ||
@@ -171,10 +170,10 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
                 {event.metadata.outputSummary}
               </div>
             )}
-            {(event.metadata?.resultCount ?? event.metadata?.eventCount) != null && (
+            {event.metadata?.resultCount != null && (
               <div>
                 <span className="font-medium text-foreground">Results found: </span>
-                {event.metadata?.resultCount ?? event.metadata?.eventCount}
+                {event.metadata.resultCount}
               </div>
             )}
             {event.metadata?.reasoning && (

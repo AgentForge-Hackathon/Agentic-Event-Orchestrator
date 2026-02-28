@@ -93,8 +93,13 @@ router.post(
       });
 
       traceContext.run(workflowId, () => {
-        run
-          .start({ inputData: { formData, userQuery: '' } })
+        const PIPELINE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        const pipelinePromise = run.start({ inputData: { formData, userQuery: '' } });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Pipeline timed out after 5 minutes')), PIPELINE_TIMEOUT_MS),
+        );
+
+        Promise.race([pipelinePromise, timeoutPromise])
           .then((result) => {
             if (result.status === 'success') {
               const resultData = result.result as PipelineResult | undefined;
@@ -102,7 +107,7 @@ router.post(
               const rankedEvents = resultData?.rankedEvents ?? [];
               const topCount = rankedEvents.length > 0 ? rankedEvents.length : events.length;
               console.log(
-                `[workflow] ✅ Pipeline success — ${topCount} top picks from ${events.length} events (run: ${workflowId})`,
+                `[workflow] \u2705 Pipeline success \u2014 ${topCount} top picks from ${events.length} events (run: ${workflowId})`,
               );
               traceEventBus.emit({
                 id: `${workflowId}-result`,
@@ -120,7 +125,7 @@ router.post(
                 },
               });
             } else {
-              console.error(`[workflow] ❌ Pipeline failed (run: ${workflowId})`, result.steps);
+              console.error(`[workflow] \u274c Pipeline failed (run: ${workflowId})`, result.steps);
               void ctx.addError('Pipeline did not complete successfully').catch(() => {});
               emitPipelineError(workflowId, 'Workflow did not complete successfully');
             }

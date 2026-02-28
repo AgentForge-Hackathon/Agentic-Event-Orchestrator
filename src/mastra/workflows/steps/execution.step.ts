@@ -1,7 +1,7 @@
 import { executeBookingTool, type BookingResult } from '../../tools/execute-booking.js';
 import { traceContext } from '../../../tracing/index.js';
 import { contextRegistry } from '../../../context/index.js';
-import { emitTrace } from '../utils/trace-helpers.js';
+import { emitTrace, withTimeout } from '../utils/trace-helpers.js';
 
 /**
  * Mapper: Executes bookings for approved itinerary items via Actionbook.
@@ -173,7 +173,7 @@ export async function executeBookings({ inputData }: { inputData: {
 
     try {
       // Call executeBookingTool directly (not via agent — faster, more deterministic)
-      const rawResult = await executeBookingTool.execute!({
+      const rawResult = await withTimeout(executeBookingTool.execute!({
         eventId: item.event.id,
         eventName: item.event.name,
         sourceUrl: item.event.sourceUrl ?? '',
@@ -185,7 +185,7 @@ export async function executeBookings({ inputData }: { inputData: {
         },
         eventSource: item.event.source ?? 'unknown',
         bookingRequired: (item.event.bookingRequired as boolean) ?? true,
-      }, {} as Record<string, never>);
+      }, {} as Record<string, never>), 60_000, `Booking: ${item.event.name}`);
 
       // Type-narrow: rawResult is ValidationError<any> | BookingResult
       if (!rawResult || !('eventId' in rawResult)) {

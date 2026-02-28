@@ -2,7 +2,7 @@ import type { Event, Itinerary } from '../../../types/index.js';
 import { planItineraryTool } from '../../tools/plan-itinerary.js';
 import { traceContext } from '../../../tracing/index.js';
 import { contextRegistry } from '../../../context/index.js';
-import { emitTrace, formatSGT, planningStartTimes } from '../utils/trace-helpers.js';
+import { emitTrace, formatSGT, planningStartTimes, withTimeout } from '../utils/trace-helpers.js';
 import { TIME_OF_DAY_WINDOWS, OCCASION_DEFAULT_WINDOWS, FLEXIBLE_FALLBACK, DURATION_HOURS, MAX_GAP_MINUTES } from '../utils/constants.js';
 
 /**
@@ -137,7 +137,7 @@ Generate 3-4 total items (including the main event). All activities must end by 
 
   try {
     const planAgent = mastra.getAgent('planningAgent');
-    const response = await planAgent.generate(planningPrompt);
+    const response = await withTimeout(planAgent.generate(planningPrompt), 45_000, 'Planning Agent LLM');
     const text = response.text.trim();
 
     console.log(`[pipeline:planning] Agent response length: ${text.length} chars`);
@@ -162,7 +162,23 @@ Generate 3-4 total items (including the main event). All activities must end by 
       }
     }
   } catch (err) {
-    console.error(`[pipeline:planning] Planning agent failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[pipeline:planning] Planning agent failed: ${errMsg}`);
+    emitTrace({
+      id: `planning-agent-error-${Date.now()}`,
+      type: 'workflow_step',
+      name: 'Planning agent failed',
+      status: 'error',
+      startedAt: new Date(planningStartTime).toISOString(),
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - planningStartTime,
+      error: errMsg,
+      metadata: {
+        pipelineStep: 'planning',
+        agentName: 'Planning Agent',
+        agentStatus: `LLM call failed: ${errMsg}`,
+      },
+    });
   }
 
   // ── Validate and structure with the tool ──
@@ -222,8 +238,24 @@ Generate 3-4 total items (including the main event). All activities must end by 
         planWarnings.push('Itinerary tool returned unexpected result');
       }
     } catch (err) {
-      console.error(`[pipeline:planning] Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
-      planWarnings.push(`Tool failed: ${err instanceof Error ? err.message : String(err)}`);
+      const toolErrMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[pipeline:planning] Tool execution failed: ${toolErrMsg}`);
+      planWarnings.push(`Tool failed: ${toolErrMsg}`);
+      emitTrace({
+        id: `planning-tool-error-${Date.now()}`,
+        type: 'workflow_step',
+        name: 'Itinerary tool failed',
+        status: 'error',
+        startedAt: new Date(planningStartTime).toISOString(),
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - planningStartTime,
+        error: toolErrMsg,
+        metadata: {
+          pipelineStep: 'planning',
+          agentName: 'Planning Agent',
+          agentStatus: `Plan tool failed: ${toolErrMsg}`,
+        },
+      });
     }
   } else {
     planWarnings.push('Planning agent did not return a valid plan — itinerary unavailable');

@@ -17,27 +17,27 @@ const AGENT_CONFIG: Record<
   { name: string; icon: typeof Brain; gradient: string }
 > = {
   intent: {
-    name: 'Intent Agent',
+    name: 'Understanding your preferences',
     icon: Brain,
     gradient: 'from-violet-500/20 to-violet-500/5',
   },
   discovery: {
-    name: 'Discovery Agent',
+    name: 'Searching for events',
     icon: Search,
     gradient: 'from-blue-500/20 to-blue-500/5',
   },
   recommendation: {
-    name: 'Recommendation Agent',
+    name: 'Curating the best matches',
     icon: Star,
     gradient: 'from-amber-500/20 to-amber-500/5',
   },
   planning: {
-    name: 'Planning Agent',
+    name: 'Building your itinerary',
     icon: Calendar,
     gradient: 'from-emerald-500/20 to-emerald-500/5',
   },
   execution: {
-    name: 'Execution Agent',
+    name: 'Making your bookings',
     icon: Rocket,
     gradient: 'from-rose-500/20 to-rose-500/5',
   },
@@ -113,7 +113,7 @@ export function ActiveAgentBanner({ events }: ActiveAgentBannerProps) {
         />
         <div className="flex flex-col">
           <span className="text-sm font-medium text-muted-foreground">
-            Preparing agents…
+            Getting started…
           </span>
         </div>
       </motion.div>
@@ -139,7 +139,7 @@ export function ActiveAgentBanner({ events }: ActiveAgentBannerProps) {
           />
         </motion.div>
         <span className="text-sm font-medium text-green-600 dark:text-green-400">
-          All agents complete
+          Your plan is ready!
         </span>
       </motion.div>
     );

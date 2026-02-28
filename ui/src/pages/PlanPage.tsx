@@ -207,9 +207,9 @@ export function PlanPage() {
               </div>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5" aria-hidden="true" />
-                Agent Trace
+                Crafting Your Itinerary
               </CardTitle>
-              <CardDescription>Watch the agents plan your experience in real-time</CardDescription>
+              <CardDescription>Sit back while we find the best events and build your perfect plan</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 min-h-0 overflow-hidden">
               <TraceViewer workflowId={workflowId} onComplete={() => navigate('/itineraries')} />

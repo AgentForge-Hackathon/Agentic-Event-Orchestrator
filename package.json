@@ -27,6 +27,7 @@
   "license": "MIT",
   "dependencies": {
     "@acontext/acontext": "^0.1.14",
+    "@actionbookdev/cli": "^0.8.1",
     "@actionbookdev/sdk": "^0.3.0",
     "@ai-sdk/openai": "^3.0.31",
     "@mastra/core": "^1.6.0",

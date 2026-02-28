@@ -10,7 +10,7 @@ import { searchEventbriteTool } from '../../tools/search-eventbrite.js';
 import { searchEventfindaTool } from '../../tools/search-eventfinda.js';
 import { traceContext } from '../../../tracing/index.js';
 import { contextRegistry } from '../../../context/index.js';
-import { emitTrace } from '../utils/trace-helpers.js';
+import { emitTrace, withTimeout } from '../utils/trace-helpers.js';
 
 export const intentStep = createStep({
   id: 'intent-understanding',
@@ -74,7 +74,7 @@ Time: ${formData.timeOfDay}
 Duration: ${formData.duration}
 Areas: ${formData.areas.join(', ')}${formData.additionalNotes ? `\nNotes: ${formData.additionalNotes}` : ''}`;
 
-      const response = await intentAgent.generate(prompt);
+      const response = await withTimeout(intentAgent.generate(prompt), 15_000, 'Intent Agent LLM');
       const text = response.text.trim();
 
       console.log(`[pipeline:intent] Agent response: ${text}`);
@@ -95,8 +95,24 @@ Areas: ${formData.areas.join(', ')}${formData.additionalNotes ? `\nNotes: ${form
         console.warn(`[pipeline:intent] Failed to parse agent JSON response, using deterministic mapping only`);
       }
     } catch (err) {
-      console.warn(`[pipeline:intent] Agent enrichment failed: ${err instanceof Error ? err.message : String(err)}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[pipeline:intent] Agent enrichment failed: ${errMsg}`);
       console.warn(`[pipeline:intent] Falling back to deterministic mapping only`);
+      emitTrace({
+        id: `intent-error-${Date.now()}`,
+        type: 'workflow_step',
+        name: 'Intent enrichment failed — using defaults',
+        status: 'error',
+        startedAt: new Date(intentStartTime).toISOString(),
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - intentStartTime,
+        error: errMsg,
+        metadata: {
+          pipelineStep: 'intent',
+          agentName: 'Intent Agent',
+          agentStatus: `Fallback to deterministic mapping: ${errMsg}`,
+        },
+      });
     }
 
     const result = {

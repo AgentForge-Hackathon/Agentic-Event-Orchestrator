@@ -76,18 +76,22 @@ export async function mergeAndDeduplicateEvents({ inputData, getStepResult }: {
   // Deduplicate merged events
   let allEvents: Event[] = rawEvents;
   let dedupStats: { originalCount: number; deduplicatedCount: number; removedCount: number } | undefined;
-  const dedupResult = await deduplicateEventsTool.execute!(
-    { events: rawEvents },
-    {} as Record<string, never>,
-  );
-  if (dedupResult && 'events' in dedupResult) {
-    const dr = dedupResult as { events: Event[]; originalCount: number; deduplicatedCount: number; removedCount: number };
-    allEvents = dr.events;
-    dedupStats = {
-      originalCount: dr.originalCount,
-      deduplicatedCount: dr.deduplicatedCount,
-      removedCount: dr.removedCount,
-    };
+  try {
+    const dedupResult = await deduplicateEventsTool.execute!(
+      { events: rawEvents },
+      {} as Record<string, never>,
+    );
+    if (dedupResult && 'events' in dedupResult) {
+      const dr = dedupResult as { events: Event[]; originalCount: number; deduplicatedCount: number; removedCount: number };
+      allEvents = dr.events;
+      dedupStats = {
+        originalCount: dr.originalCount,
+        deduplicatedCount: dr.deduplicatedCount,
+        removedCount: dr.removedCount,
+      };
+    }
+  } catch (err) {
+    console.warn(`[pipeline:discovery] ⚠️ Dedup failed — using raw merged events: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   // HallyuCon is injected as a guaranteed free RSVP event for the demo.

@@ -1,3 +1,5 @@
+import { traceEventBus } from '../tracing/index.js';
+
 /**
  * In-memory approval registry for workflow plan approval gates.
  *
@@ -56,6 +58,24 @@ setInterval(() => {
       // Resolve as rejected (timed out)
       entry.resolve(false);
       pendingApprovals.delete(id);
+      // Emit a trace event so the user sees the timeout in TraceViewer
+      traceEventBus.emit({
+        id: `approval-timeout-${Date.now()}`,
+        traceId: id,
+        type: 'plan_approval',
+        name: 'Approval timed out',
+        status: 'rejected',
+        startedAt: new Date(entry.createdAt).toISOString(),
+        completedAt: new Date().toISOString(),
+        durationMs: now - entry.createdAt,
+        error: 'Approval timed out after 30 minutes',
+        metadata: {
+          pipelineStep: 'planning',
+          agentName: 'Planning Agent',
+          agentStatus: 'Approval timed out — plan rejected automatically',
+        },
+      });
+      console.warn(`[approval-registry] ⚠️ Approval timed out for workflow ${id}`);
     }
   }
 }, 5 * 60 * 1000);

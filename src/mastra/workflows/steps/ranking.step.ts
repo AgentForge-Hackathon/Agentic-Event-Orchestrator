@@ -3,7 +3,7 @@ import { rankEventsTool } from '../../tools/rank-events.js';
 import { recommendationAgent } from '../../agents/recommendation.js';
 import { traceContext } from '../../../tracing/index.js';
 import { contextRegistry } from '../../../context/index.js';
-import { emitTrace, rankingStartTimes } from '../utils/trace-helpers.js';
+import { emitTrace, rankingStartTimes, withTimeout } from '../utils/trace-helpers.js';
 
 /**
  * Mapper: Ranks events using deterministic scoring + LLM narrative reasoning.
@@ -80,9 +80,25 @@ export async function rankAndRecommend({ inputData }: { inputData: {
   );
 
   if (!rankResult || 'error' in rankResult) {
-    console.warn(`[pipeline:ranking] ⚠️ Ranking failed — returning unranked events. Error:`, JSON.stringify(rankResult, null, 2));
+    const errMsg = `Ranking returned error: ${JSON.stringify(rankResult, null, 2)}`;
+    console.warn(`[pipeline:ranking] \u26a0\ufe0f Ranking failed \u2014 returning unranked events.`);
     const _rankFailCtx = contextRegistry.get(traceContext.getStore() ?? '');
     void _rankFailCtx?.addError('Ranking failed — returning unranked events').catch(() => {});
+    emitTrace({
+      id: `ranking-error-${Date.now()}`,
+      type: 'workflow_step',
+      name: 'Ranking failed — returning unranked events',
+      status: 'error',
+      startedAt: new Date(rankingStartTime).toISOString(),
+      completedAt: new Date().toISOString(),
+      durationMs: Date.now() - rankingStartTime,
+      error: errMsg,
+      metadata: {
+        pipelineStep: 'recommendation',
+        agentName: 'Recommendation Agent',
+        agentStatus: `Fallback to unranked events: ${errMsg}`,
+      },
+    });
     return {
       events,
       rankedEvents: undefined,
@@ -132,7 +148,7 @@ Top ranked events:
 ${topPicks.map((r: { event: { name: string; category?: string; price?: { min: number; max: number; currency: string } }; score: number; reasoning: string }, i: number) => `${i + 1}. ${r.event.name} (${r.event.category ?? 'other'}, ${r.event.price ? `$${r.event.price.min}-${r.event.price.max}` : 'free'}) — score ${r.score} — ${r.reasoning}`).join('\n')}`;
 
     console.log(`[pipeline:ranking] 🤖 Recommendation Agent generating reasoning…`);
-    const response = await recommendationAgent.generate(reasoningPrompt);
+    const response = await withTimeout(recommendationAgent.generate(reasoningPrompt), 10_000, 'Recommendation Agent LLM');
     const text = response.text.trim();
 
     try {
@@ -145,7 +161,8 @@ ${topPicks.map((r: { event: { name: string; category?: string; price?: { min: nu
       console.warn(`[pipeline:ranking] Agent returned non-JSON — using raw text as narrative`);
     }
   } catch (err) {
-    console.warn(`[pipeline:ranking] Agent reasoning failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`[pipeline:ranking] Agent reasoning failed: ${errMsg}`);
     console.warn(`[pipeline:ranking] Falling back to deterministic reasoning only`);
   }
 

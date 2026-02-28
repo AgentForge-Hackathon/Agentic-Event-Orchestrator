@@ -21,17 +21,41 @@ const TYPE_COLORS: Record<TraceEvent['type'], string> = {
   generic: 'border-l-gray-400',
 };
 
-const TYPE_LABELS: Record<TraceEvent['type'], string> = {
-  agent_run: 'Agent',
-  tool_call: 'Tool',
-  workflow_run: 'Workflow',
-  workflow_step: 'Step',
-  workflow_parallel: 'Parallel',
-  model_generation: 'LLM',
-  model_step: 'Model',
-  plan_approval: 'Approval',
-  booking_execution: 'Booking',
-  generic: 'Event',
+const FRIENDLY_NAMES: Record<string, string> = {
+  'intent-agent': 'Understanding your preferences',
+  'discovery-agent': 'Searching for events',
+  'recommendation-agent': 'Curating the best matches',
+  'planning-agent': 'Building your itinerary',
+  'execution-agent': 'Making your bookings',
+  'parse-intent': 'Analysing what you want',
+  'search-eventbrite': 'Searching Eventbrite',
+  'search-eventfinda': 'Searching EventFinda',
+  'deduplicate-events': 'Removing duplicate events',
+  'rank-events': 'Ranking events for you',
+  'plan-itinerary': 'Creating your itinerary',
+  'execute-booking': 'Completing your booking',
+  'planning-pipeline': 'Planning your experience',
+  'pipeline-result': 'Plan complete',
+};
+
+function getFriendlyName(name: string): string {
+  if (FRIENDLY_NAMES[name]) return FRIENDLY_NAMES[name];
+  // Fall back to title-cased, dash/underscore replaced version
+  return name.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const FRIENDLY_STATUS: Partial<Record<string, string>> = {
+  completed: 'Done',
+  started: 'In progress',
+  running: 'In progress',
+  error: 'Something went wrong',
+  awaiting_approval: 'Waiting for you',
+  approved: 'Approved',
+  rejected: 'Declined',
+  booking_started: 'Booking started',
+  booking_completed: 'Booking done',
+  booking_failed: 'Booking failed',
+  booking_progress: 'Booking in progress',
 };
 
 function formatDuration(ms: number): string {
@@ -72,8 +96,6 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
     event.metadata?.outputSummary ||
     event.metadata?.eventCount != null ||
     event.metadata?.resultCount != null ||
-    event.metadata?.model ||
-    event.metadata?.tokenUsage ||
     event.metadata?.reasoning ||
     event.metadata?.reasoningSteps?.length ||
     event.metadata?.decisions?.length;
@@ -103,10 +125,7 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
                   )}
                 </button>
               )}
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide shrink-0">
-                {TYPE_LABELS[event.type]}
-              </span>
-              <span className="text-sm font-medium truncate">{event.name}</span>
+              <span className="text-sm font-medium truncate">{getFriendlyName(event.name)}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {event.durationMs != null && (
@@ -115,8 +134,8 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
                   {formatDuration(event.durationMs)}
                 </span>
               )}
-              <Badge variant={statusBadgeVariant(event.status)} className="text-xs capitalize">
-                {event.status}
+              <Badge variant={statusBadgeVariant(event.status)} className="text-xs">
+                {FRIENDLY_STATUS[event.status] ?? event.status}
               </Badge>
             </div>
           </div>
@@ -142,13 +161,13 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
           <div className="px-3 pb-3 space-y-2 text-xs text-muted-foreground">
             {event.metadata?.inputSummary && (
               <div>
-                <span className="font-medium text-foreground">Input: </span>
+                <span className="font-medium text-foreground">What we asked: </span>
                 {event.metadata.inputSummary}
               </div>
             )}
             {event.metadata?.outputSummary && (
               <div>
-                <span className="font-medium text-foreground">Output: </span>
+                <span className="font-medium text-foreground">What we found: </span>
                 {event.metadata.outputSummary}
               </div>
             )}
@@ -156,18 +175,6 @@ export function SpanCard({ event, depth = 0, children, expanded = false, onToggl
               <div>
                 <span className="font-medium text-foreground">Results found: </span>
                 {event.metadata?.resultCount ?? event.metadata?.eventCount}
-              </div>
-            )}
-            {event.metadata?.model && (
-              <div>
-                <span className="font-medium text-foreground">Model: </span>
-                {event.metadata.model}
-              </div>
-            )}
-            {event.metadata?.tokenUsage && (
-              <div>
-                <span className="font-medium text-foreground">Tokens: </span>
-                {event.metadata.tokenUsage.prompt} prompt + {event.metadata.tokenUsage.completion} completion = {event.metadata.tokenUsage.total} total
               </div>
             )}
             {event.metadata?.reasoning && (

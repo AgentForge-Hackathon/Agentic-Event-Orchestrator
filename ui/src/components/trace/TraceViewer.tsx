@@ -207,7 +207,7 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
         {visibleEvents.length === 0 && (status === 'connecting' || status === 'connected') && (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin mb-2" aria-hidden="true" />
-            <p className="text-sm">Waiting for agent activity...</p>
+            <p className="text-sm">Getting started...</p>
           </div>
         )}
 
@@ -246,15 +246,15 @@ export function TraceViewer({ workflowId, onComplete }: TraceViewerProps) {
         {status === 'connected' && (
           <>
             <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
-            <span className="text-primary font-medium">Agents working...</span>
+            <span className="text-primary font-medium">Working on your plan...</span>
           </>
         )}
         {status === 'done' && !showContinueButton && (
           <>
             <CheckCircle2 className="h-4 w-4 text-green-500" aria-hidden="true" />
             <span className="text-green-600 dark:text-green-400 font-medium">
-              Complete!
-              {resultCount != null && ` — ${resultCount} results found`}
+              All done!
+              {resultCount != null && ` — ${resultCount} events found`}
             </span>
           </>
         )}
